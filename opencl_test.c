@@ -20,29 +20,18 @@
 extern double wtime(); // returns time since some fixed past point (wtime.c)
 extern int output_device_info(cl_device_id);
 
+char *getKernelSource(char *);
+
 #define TOL (0.001)   // tolerance used in floating point comparisons
 #define LENGTH (1024) // length of vectors a, b, and c
-
-const char *KernelSource = "\n"
-                           "__kernel void vadd(                                                 \n"
-                           "   __global float* a,                                                  \n"
-                           "   __global float* b,                                                  \n"
-                           "   __global float* c,                                                  \n"
-                           "   const unsigned int count)                                           \n"
-                           "{                                                                      \n"
-                           "   int i = get_global_id(0);                                           \n"
-                           "   if(i < count)                                                       \n"
-                           "       c[i] = a[i] + b[i];                                             \n"
-                           "}                                                                      \n"
-                           "\n";
 
 int main(int argc, char **argv)
 {
     int err; // error code returned from OpenCL calls
 
-    float *h_a = (float *)calloc(LENGTH, sizeof(float)); // a vector
-    float *h_b = (float *)calloc(LENGTH, sizeof(float)); // b vector
-    float *h_c = (float *)calloc(LENGTH, sizeof(float)); // c vector (a+b) returned from the compute device
+    float *h_a = (float *)malloc(LENGTH * sizeof(float)); // a vector
+    float *h_b = (float *)malloc(LENGTH * sizeof(float)); // b vector
+    float *h_c = (float *)malloc(LENGTH * sizeof(float)); // c vector (a+b) returned from the compute device
 
     unsigned int correct; // number of correct results
 
@@ -77,7 +66,7 @@ int main(int argc, char **argv)
     if (numPlatforms == 0)
     {
         printf("Found 0 platforms!\n");
-        return EXIT_FAILURE;
+        return 1;
     }
 
     // Get all platforms
@@ -110,7 +99,8 @@ int main(int argc, char **argv)
     checkError(err, "Creating command queue");
 
     // Create the compute program from the source buffer
-    program = clCreateProgramWithSource(context, 1, (const char **)&KernelSource, NULL, &err);
+    char *kernel_source = getKernelSource("./kernel.cl");
+    program = clCreateProgramWithSource(context, 1, (const char **)&kernel_source, NULL, &err);
     checkError(err, "Creating program");
 
     // Build the program
@@ -210,4 +200,29 @@ int main(int argc, char **argv)
     free(h_c);
 
     return 0;
+}
+
+char *getKernelSource(char *filename)
+{
+    FILE *file = fopen(filename, "r");
+    if (!file)
+    {
+        fprintf(stderr, "Error: Could not open kernel source file\n");
+        exit(EXIT_FAILURE);
+    }
+    fseek(file, 0, SEEK_END);
+    int len = ftell(file) + 1;
+    rewind(file);
+
+    char *source = (char *)malloc(sizeof(char) * len);
+    if (!source)
+    {
+        fprintf(stderr, "Error: Could not allocate memory for source string\n");
+        fclose(file);
+        exit(1);
+    }
+
+    fread(source, sizeof(char), len, file);
+    fclose(file);
+    return source;
 }
