@@ -36,8 +36,8 @@ __kernel void combine_layers(__global unsigned int *input_buffer,
 
     unsigned char result[4];
 
-    for (uint ii = 0; ii < count; ii += 1) {
-      uint layer_index = index + width * height * ii;
+    for (uint i = 0; i < count; i += 1) {
+      uint layer_index = index + width * height * i;
 
       uint c = input_buffer[layer_index];
       unsigned char fg[4] = {
