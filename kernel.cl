@@ -39,18 +39,18 @@ __kernel void combine_layers(__global unsigned int *input_buffer,
       uint c_b = c >> 8 & 0xFF;
       uint c_a = c >> 0 & 0xFF;
 
-      // TODO implement prober algorithm to combine colors with alpha values
+      // TODO implement prober algorithm to combine colors with alpha values and
+      // not mix them
       r += c_r;
       g += c_g;
       b += c_b;
       a += c_a;
     }
 
-    float weight = 1.0 / (float)count;
-    r = (uint)((float)r * weight);
-    g = (uint)((float)g * weight);
-    b = (uint)((float)b * weight);
-    a = (uint)((float)a * weight);
+    r = r / count;
+    g = g / count;
+    b = b / count;
+    a = a / count;
 
     output_buffer[index] = pack_color(r, g, b, a);
   }
