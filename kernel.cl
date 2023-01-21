@@ -14,6 +14,15 @@ uint pack_color(CHANNEL r, CHANNEL g, CHANNEL b, CHANNEL a) {
   return (r << 24 | g << 16 | b << 8 | a);
 }
 
+void blend(unsigned char result[4], unsigned char fg[4], unsigned char bg[4]) {
+  unsigned int alpha = fg[3] + 1;
+  unsigned int inv_alpha = 256 - fg[3];
+  result[0] = (unsigned char)((alpha * fg[0] + inv_alpha * bg[0]) >> 8);
+  result[1] = (unsigned char)((alpha * fg[1] + inv_alpha * bg[1]) >> 8);
+  result[2] = (unsigned char)((alpha * fg[2] + inv_alpha * bg[2]) >> 8);
+  result[3] = 0xff;
+}
+
 __kernel void combine_layers(__global unsigned int *input_buffer,
                              __global unsigned int *output_buffer,
                              const unsigned int width,
@@ -25,33 +34,19 @@ __kernel void combine_layers(__global unsigned int *input_buffer,
   if ((x < width) && (y < height) && (count > 0)) {
     uint index = x + y * height;
 
-    uint r = 0;
-    uint g = 0;
-    uint b = 0;
-    uint a = 0;
+    unsigned char result[4];
 
     for (uint ii = 0; ii < count; ii += 1) {
       uint layer_index = index + width * height * ii;
 
       uint c = input_buffer[layer_index];
-      uint c_r = c >> 24 & 0xFF;
-      uint c_g = c >> 16 & 0xFF;
-      uint c_b = c >> 8 & 0xFF;
-      uint c_a = c >> 0 & 0xFF;
-
-      // TODO implement prober algorithm to combine colors with alpha values and
-      // not mix them
-      r += c_r;
-      g += c_g;
-      b += c_b;
-      a += c_a;
+      unsigned char fg[4] = {
+          (unsigned char)(c >> 24 & 0xFF), (unsigned char)(c >> 16 & 0xFF),
+          (unsigned char)(c >> 8 & 0xFF), (unsigned char)(c >> 0 & 0xFF)};
+      blend(result, fg, result);
     }
 
-    r = r / count;
-    g = g / count;
-    b = b / count;
-    a = a / count;
-
-    output_buffer[index] = pack_color(r, g, b, a);
+    output_buffer[index] =
+        pack_color(result[0], result[1], result[2], result[3]);
   }
 }
