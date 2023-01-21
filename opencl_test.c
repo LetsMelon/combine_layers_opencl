@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#include <assert.h>
 
 #ifdef __APPLE__
 #include <OpenCL/opencl.h>
@@ -24,6 +25,8 @@ char *getKernelSource(char *);
 
 #define TOL (0.001)   // tolerance used in floating point comparisons
 #define LENGTH (1024) // length of vectors a, b, and c
+
+// #define VADD 1
 
 int main(int argc, char **argv)
 {
@@ -116,6 +119,8 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
+#ifdef VADD
+
     // Create the compute kernel from the program
     ko_vadd = clCreateKernel(program, "vadd", &err);
     checkError(err, "Creating kernel");
@@ -190,14 +195,90 @@ int main(int argc, char **argv)
     clReleaseMemObject(d_a);
     clReleaseMemObject(d_b);
     clReleaseMemObject(d_c);
-    clReleaseProgram(program);
     clReleaseKernel(ko_vadd);
-    clReleaseCommandQueue(commands);
-    clReleaseContext(context);
 
     free(h_a);
     free(h_b);
     free(h_c);
+#else
+    unsigned int width = 256;
+    unsigned int height = 256;
+    unsigned int ccount = 3;
+
+    unsigned buffer_input_size = sizeof(unsigned int) * width * height * ccount;
+    unsigned int *buffer_input = (unsigned int *)malloc(buffer_input_size);
+
+    for (unsigned int i = 0; i < width * height; i += 1)
+    {
+        buffer_input[i] = 0xFF0000FF;
+        buffer_input[i + width * height] = 0x00FF00FF;
+        buffer_input[i + width * height * 2] = 0x0F1F1AFF;
+    }
+
+    unsigned int buffer_output_size = sizeof(unsigned int) * width * height;
+    unsigned int *buffer_output = (unsigned int *)malloc(buffer_output_size);
+
+    cl_kernel ko_combine_layers = clCreateKernel(program, "combine_layers", &err);
+    checkError(err, "Creating kernel for 'combine_layers'");
+
+    cl_mem d_buffer_input = clCreateBuffer(context, CL_MEM_READ_ONLY, buffer_input_size, NULL, &err);
+    checkError(err, "Creating buffer 'd_buffer_input'");
+
+    cl_mem d_buffer_ouput = clCreateBuffer(context, CL_MEM_READ_ONLY, buffer_output_size, NULL, &err);
+    checkError(err, "Creating buffer 'd_buffer_ouput'");
+
+    err = clEnqueueWriteBuffer(commands, d_buffer_input, CL_TRUE, 0, buffer_input_size, buffer_input, 0, NULL, NULL);
+    checkError(err, "Copying buffer_input to device at d_buffer_input");
+
+    err = clSetKernelArg(ko_combine_layers, 0, sizeof(cl_mem), &d_buffer_input);
+    err |= clSetKernelArg(ko_combine_layers, 1, sizeof(cl_mem), &d_buffer_ouput);
+    err |= clSetKernelArg(ko_combine_layers, 2, sizeof(unsigned int), &width);
+    err |= clSetKernelArg(ko_combine_layers, 3, sizeof(unsigned int), &height);
+    err |= clSetKernelArg(ko_combine_layers, 4, sizeof(unsigned int), &ccount);
+    checkError(err, "Setting kernel arguments");
+
+    const size_t gglobal[2] = {width, height};
+    err = clEnqueueNDRangeKernel(
+        commands,
+        ko_combine_layers,
+        2,
+        NULL,
+        gglobal,
+        NULL,
+        0,
+        NULL,
+        NULL);
+    checkError(err, "Enqueueing kernel");
+
+    err = clFinish(commands);
+    checkError(err, "Waiting for kernel to finish");
+
+    err = clEnqueueReadBuffer(commands, d_buffer_ouput, CL_TRUE, 0, buffer_output_size, buffer_output, 0, NULL, NULL);
+    if (err != CL_SUCCESS)
+    {
+        printf("Error: Failed to read output array!\n%s\n", err_code(err));
+        exit(1);
+    }
+
+    assert(buffer_output[0] == 0x5A5F08FF);
+    // for (uint i = 0; i < (width * height); i += 1)
+    //{
+    //     printf("(cpu)\t%d -> %08X\n", i, buffer_output[i]);
+    // }
+
+    // cleanup
+    clReleaseMemObject(d_buffer_input);
+    clReleaseMemObject(d_buffer_ouput);
+    clReleaseKernel(ko_combine_layers);
+
+    free(buffer_input);
+    free(buffer_output);
+
+#endif
+
+    clReleaseProgram(program);
+    clReleaseCommandQueue(commands);
+    clReleaseContext(context);
 
     return 0;
 }
