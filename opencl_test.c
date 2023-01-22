@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
-#include <assert.h>
 
 #ifdef __APPLE__
 #include <OpenCL/opencl.h>
@@ -11,6 +10,8 @@
 #endif
 
 #include "err_code.h"
+#define ASSERTF_DEF_ONCE
+#include "assertf.h"
 
 #ifndef DEVICE
 #define DEVICE CL_DEVICE_TYPE_DEFAULT
@@ -162,13 +163,22 @@ int main(int argc, char **argv)
     }
     printf("\n");
 
-    // printf("buffer_output[%ld] = 0x%08x\n", 0, buffer_output[0]);
-    // assert(buffer_output[0] == 0x55aa00ff);
-    // printf("buffer_output[%ld] = 0x%08x\n", width * height, buffer_output[width * height - 1]);
-    // assert(buffer_output[width * height - 1] == 0x55aa00ff);
-
-    // printf("buffer_output[%ld] = 0x%08X\n", width * height * 2, buffer_output[width * height * 2]);
-    // assert(buffer_output[width * height * 2] == 0x89D499D4);
+    assertf(buffer_output[0] == 0x00f600ff, "0x%08x", buffer_output[0]);
+    assertf(buffer_output[1] == 0x00f600ff, "0x%08x", buffer_output[1]);
+    assertf(buffer_output[2] == 0x01f600ff, "0x%08x", buffer_output[2]);
+    assertf(buffer_output[3] == 0x02f600ff, "0x%08x", buffer_output[3]);
+    assertf(buffer_output[4] == 0x03f600ff, "0x%08x", buffer_output[4]);
+    assertf(buffer_output[5] == 0x04f600ff, "0x%08x", buffer_output[5]);
+    assertf(buffer_output[6] == 0x05f600ff, "0x%08x", buffer_output[6]);
+    assertf(buffer_output[7] == 0x06f600ff, "0x%08x", buffer_output[7]);
+    assertf(buffer_output[8] == 0x07f600ff, "0x%08x", buffer_output[8]);
+    assertf(buffer_output[9] == 0x08f600ff, "0x%08x", buffer_output[9]);
+    assertf(buffer_output[10] == 0x09f600ff, "0x%08x", buffer_output[10]);
+    assertf(buffer_output[11] == 0x0af600ff, "0x%08x", buffer_output[11]);
+    assertf(buffer_output[12] == 0x0bf600ff, "0x%08x", buffer_output[12]);
+    assertf(buffer_output[13] == 0x0cf600ff, "0x%08x", buffer_output[13]);
+    assertf(buffer_output[14] == 0x0df600ff, "0x%08x", buffer_output[14]);
+    assertf(buffer_output[15] == 0x0ef600ff, "0x%08x", buffer_output[15]);
 
     // cleanup and exit
     clReleaseMemObject(d_buffer_input);
