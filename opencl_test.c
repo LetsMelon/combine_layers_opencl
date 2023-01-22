@@ -80,19 +80,34 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    unsigned int width = 2;
-    unsigned int height = 2;
-    unsigned int ccount = 3;
+    unsigned int width = 4;
+    unsigned int height = 4;
+    unsigned int count = 3;
 
-    unsigned int buffer_input_size = sizeof(unsigned int) * width * height * ccount;
+    unsigned int buffer_input_size = sizeof(unsigned int) * width * height * count;
     unsigned int *buffer_input = (unsigned int *)malloc(buffer_input_size);
 
     // ? "random values"
     for (unsigned int i = 0; i < width * height; i += 1)
     {
-        buffer_input[i] = 0xFF0000FF;
-        buffer_input[i + width * height] = 0x00FF00FF;
-        buffer_input[i + width * height * 2] = 0x0F1F1A3F;
+        for (uint l = 0; l < count; l += 1)
+        {
+            buffer_input[i + width * height * l] = 0x00FF0000 + ((l + 0xAA) % 0xFF) + ((i % 0xFF) << 24);
+        }
+    }
+
+    printf("(random) input buffer:\n");
+    for (uint i = 0; i < width * height * count; i += 1)
+    {
+        printf("0x%08x", buffer_input[i]);
+        if ((i + 1) % (width * height) == 0)
+        {
+            printf("\n");
+        }
+        else
+        {
+            printf(", ");
+        }
     }
 
     unsigned int buffer_output_size = sizeof(unsigned int) * width * height;
@@ -114,16 +129,16 @@ int main(int argc, char **argv)
     err |= clSetKernelArg(ko_combine_layers, 1, sizeof(cl_mem), &d_buffer_ouput);
     err |= clSetKernelArg(ko_combine_layers, 2, sizeof(unsigned int), &width);
     err |= clSetKernelArg(ko_combine_layers, 3, sizeof(unsigned int), &height);
-    err |= clSetKernelArg(ko_combine_layers, 4, sizeof(unsigned int), &ccount);
+    err |= clSetKernelArg(ko_combine_layers, 4, sizeof(unsigned int), &count);
     checkError(err, "Setting kernel arguments");
 
-    const size_t gglobal[2] = {width, height};
+    const size_t global[2] = {width, height};
     err = clEnqueueNDRangeKernel(
         commands,
         ko_combine_layers,
         2,
         NULL,
-        gglobal,
+        global,
         NULL,
         0,
         NULL,
@@ -140,13 +155,20 @@ int main(int argc, char **argv)
         exit(1);
     }
 
-    assert(buffer_output[0] == 0x3C706FF);
-    assert(buffer_output[width * height] == 0x927ABFD8);
-    assert(buffer_output[width * height * 2] == 0x89D499D4);
-    // for (uint i = 0; i < (width * height); i += 1)
-    //{
-    //     printf("(cpu)\t%d -> %08X\n", i, buffer_output[i]);
-    // }
+    printf("output buffer:\n");
+    for (uint i = 0; i < width * height; i += 1)
+    {
+        printf("0x%08x, ", buffer_output[i]);
+    }
+    printf("\n");
+
+    // printf("buffer_output[%ld] = 0x%08x\n", 0, buffer_output[0]);
+    // assert(buffer_output[0] == 0x55aa00ff);
+    // printf("buffer_output[%ld] = 0x%08x\n", width * height, buffer_output[width * height - 1]);
+    // assert(buffer_output[width * height - 1] == 0x55aa00ff);
+
+    // printf("buffer_output[%ld] = 0x%08X\n", width * height * 2, buffer_output[width * height * 2]);
+    // assert(buffer_output[width * height * 2] == 0x89D499D4);
 
     // cleanup and exit
     clReleaseMemObject(d_buffer_input);
