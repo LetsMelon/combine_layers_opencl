@@ -1,21 +1,13 @@
 use std::ffi::{c_char, CString};
 
-#[no_mangle]
-pub static SHADER_STRING: &[u8] = include_bytes!("../kernel.cl");
-
-#[no_mangle]
-pub extern "C" fn rust_function() {
-    println!("Hello from Rust!");
-    println!(
-        "Shader:\n{}",
-        String::from_utf8(SHADER_STRING.to_vec()).unwrap()
-    );
-}
+static SHADER_STRING: &'static str = include_str!("./shader/kernel.cl");
 
 #[no_mangle]
 pub extern "C" fn get_shader_source() -> *const c_char {
-    let string = String::from_utf8(SHADER_STRING.to_vec()).unwrap();
+    let string = SHADER_STRING.to_string();
 
-    let c_string = CString::new(string).unwrap();
-    c_string.into_raw()
+    match CString::new(string) {
+        Ok(c_string) => c_string.into_raw(),
+        Err(_) => std::ptr::null(),
+    }
 }

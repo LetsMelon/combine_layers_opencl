@@ -18,7 +18,7 @@ opencl_test: opencl_test.c $(COMMON_DIR)/*.c
 	make build_kernel_holder
 	$(CC) $^ $(CCFLAGS) $(LIBS) -I $(COMMON_DIR) -o $@ libshader_holder.a
 
-build_kernel_holder: src/*.rs kernel.cl
+build_kernel_holder: src/*.rs src/shader/*.cl
 	cargo build
 	mv ./target/debug/libshader_holder.a ./libshader_holder.a
 
