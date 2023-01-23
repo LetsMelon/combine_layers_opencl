@@ -12,8 +12,20 @@ ifeq ($(PLATFORM), Darwin)
 	LIBS = -framework OpenCL
 endif
 
-opencl_test: opencl_test.c $(COMMON_DIR)/*.c
-	$(CC) $^ $(CCFLAGS) $(LIBS) -I $(COMMON_DIR) -o $@
+.PHONY : build_kernel_holder opencl_test clean_build_kernel_holder clean_opencl_test clean_all
 
-clean:
+opencl_test: opencl_test.c $(COMMON_DIR)/*.c
+	make build_kernel_holder
+	$(CC) $^ $(CCFLAGS) $(LIBS) -I $(COMMON_DIR) -o $@ libshader_holder.a
+
+build_kernel_holder: src/*.rs kernel.cl
+	cargo build
+	mv ./target/debug/libshader_holder.a ./libshader_holder.a
+
+clean_build_kernel_holder:
+	rm -f libshader_holder.a shader_holder.h
+
+clean_opencl_test:
 	rm -f opencl_test
+
+clean_all: clean_build_kernel_holder clean_opencl_test

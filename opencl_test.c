@@ -17,8 +17,9 @@
 #define DEVICE CL_DEVICE_TYPE_DEFAULT
 #endif
 
+#include "shader_holder.h"
+
 extern int output_device_info(cl_device_id);
-char *getKernelSource(char *);
 
 int main(int argc, char **argv)
 {
@@ -64,7 +65,7 @@ int main(int argc, char **argv)
     checkError(err, "Creating command queue");
 
     // Create the compute program from the source buffer
-    char *kernel_source = getKernelSource("./kernel.cl");
+    const char *kernel_source = get_shader_source();
     cl_program program = clCreateProgramWithSource(context, 1, (const char **)&kernel_source, NULL, &err);
     checkError(err, "Creating program");
 
@@ -192,29 +193,4 @@ int main(int argc, char **argv)
     free(buffer_output);
 
     return 0;
-}
-
-char *getKernelSource(char *filename)
-{
-    FILE *file = fopen(filename, "r");
-    if (!file)
-    {
-        fprintf(stderr, "Error: Could not open kernel source file\n");
-        exit(EXIT_FAILURE);
-    }
-    fseek(file, 0, SEEK_END);
-    int len = ftell(file) + 1;
-    rewind(file);
-
-    char *source = (char *)malloc(sizeof(char) * len);
-    if (!source)
-    {
-        fprintf(stderr, "Error: Could not allocate memory for source string\n");
-        fclose(file);
-        exit(1);
-    }
-
-    fread(source, sizeof(char), len, file);
-    fclose(file);
-    return source;
 }
