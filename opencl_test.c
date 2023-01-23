@@ -20,6 +20,9 @@
 #include "shader_holder.h"
 
 extern int output_device_info(cl_device_id);
+extern double wtime();
+
+void results(int width, int height, int count, double run_time);
 
 int main(int argc, char **argv)
 {
@@ -134,6 +137,8 @@ int main(int argc, char **argv)
     err |= clSetKernelArg(ko_combine_layers, 4, sizeof(unsigned int), &count);
     checkError(err, "Setting kernel arguments");
 
+    double start_time = wtime();
+
     const size_t global[2] = {width, height};
     err = clEnqueueNDRangeKernel(
         commands,
@@ -156,6 +161,9 @@ int main(int argc, char **argv)
         printf("Error: Failed to read output array!\n%s\n", err_code(err));
         exit(1);
     }
+
+    double run_time = wtime() - start_time;
+    results((int)width, (int)height, (int)count, run_time);
 
     printf("output buffer:\n");
     for (uint i = 0; i < width * height; i += 1)
@@ -193,4 +201,10 @@ int main(int argc, char **argv)
     free(buffer_output);
 
     return 0;
+}
+
+void results(int width, int height, int count, double run_time)
+{
+    float mflops = ((count + 1) * width * height * sizeof(unsigned int)) / (1000000.0f * run_time);
+    printf("\t%.6f seconds at %.2f MFLOPS\n", run_time, mflops);
 }
