@@ -3,3 +3,4 @@ target/
 shader_holder.h
 libshader_holder.a
 **.DS_Store
+*.png

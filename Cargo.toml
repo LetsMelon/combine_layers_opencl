@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 ocl = "0.19.4"
+rusvid_core = { git = "https://github.com/LetsMelon/rusvid.git", branch = "development", commit = "99187c199461767e56a1df465268026ac6bd2a82" }

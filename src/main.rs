@@ -1,13 +1,15 @@
 use ocl::{Buffer, MemFlags, ProQue, SpatialDims};
+use rusvid_core::plane::*;
 
 static KERNEL_SRC: &'static str = include_str!("./shader/kernel.cl");
 
-const WIDTH: usize = 4;
-const HEIGHT: usize = 4;
+const SIZE: usize = 2_usize.pow(10);
+const WIDTH: usize = SIZE;
+const HEIGHT: usize = SIZE;
 const COUNT: usize = 2;
 
 const COLOR_RED: u32 = (0xFF << (8 * 3)) | 0xFF;
-const COLOR_GREEN: u32 = (0xFF << (8 * 2)) | 0xFF;
+const COLOR_GREEN: u32 = (0xFF << (8 * 2)) | 0x77;
 const COLOR_BLUE: u32 = (0xFF << (8 * 1)) | 0xFF;
 
 fn basics() -> ocl::Result<()> {
@@ -19,38 +21,51 @@ fn basics() -> ocl::Result<()> {
         .expect("Build ProQue");
 
     // Create a temporary init vector and the source buffer.
-    let vec_source = (0..COUNT)
+
+    let frames = (0..COUNT)
         .map(|i| match i {
-            0 => vec![COLOR_RED; WIDTH * HEIGHT],
-            1 => vec![COLOR_GREEN; WIDTH * HEIGHT],
+            0 => [
+                vec![COLOR_RED; WIDTH * HEIGHT / 2],
+                vec![0; WIDTH * HEIGHT / 2],
+            ]
+            .concat(),
+            1 => [
+                vec![0; WIDTH * HEIGHT / 4],
+                vec![COLOR_GREEN; WIDTH * HEIGHT / 2],
+                vec![0; WIDTH * HEIGHT / 4],
+            ]
+            .concat(),
             _ => vec![COLOR_BLUE; WIDTH * HEIGHT],
         })
-        .flatten()
         .collect::<Vec<_>>();
-    // let vec_source = vec![0xFF0000FF_u32; WIDTH * HEIGHT * COUNT];
-    // for i in 0..(WIDTH * HEIGHT) {
-    //     for l in 0..COUNT {
-    //         let index = i + WIDTH * HEIGHT * l;
-    //
-    //         let r = i % 0xff;
-    //         let g = 0xff;
-    //         let b = 0x00;
-    //         let a = (l + 0xaa) % 0xff;
-    //
-    //         vec_source[index] = (r << 24) | (g << 16) | (b << 8) | a;
-    //
-    //         // 0x00ff00aa
-    //         //   r g b a
-    //
-    //         // vec_source[i + WIDTH * HEIGHT * l] =
-    //         //     (0x00FF0000 + ((l + 0xAA) % 0xFF) + ((i % 0xFF) << 24)) as u32;
-    //     }
-    // }
 
-    vec_source.chunks(WIDTH * HEIGHT).for_each(|chunk| {
-        chunk.iter().for_each(|x| print!("0x{:08x}, ", x));
-        println!("");
+    frames.iter().enumerate().for_each(|(i, frame)| {
+        let plane = Plane::from_data(
+            WIDTH as u32,
+            HEIGHT as u32,
+            frame
+                .iter()
+                .map(|pixel| {
+                    let r = ((pixel >> (8 * 3)) & 0xFF) as u8;
+                    let g = ((pixel >> (8 * 2)) & 0xFF) as u8;
+                    let b = ((pixel >> (8 * 1)) & 0xFF) as u8;
+                    let a = ((pixel >> (8 * 0)) & 0xFF) as u8;
+
+                    [r, g, b, a]
+                })
+                .collect(),
+        )
+        .unwrap();
+
+        plane.save_as_png(format!("frame_{}.png", i)).unwrap();
     });
+
+    let vec_source = frames.iter().cloned().flatten().collect::<Vec<_>>();
+
+    // vec_source.chunks(WIDTH * HEIGHT).for_each(|chunk| {
+    //     chunk.iter().for_each(|x| print!("0x{:08x}, ", x));
+    //     println!("");
+    // });
 
     let source_buffer = Buffer::builder()
         .queue(ocl_pq.queue().clone())
@@ -91,6 +106,30 @@ fn basics() -> ocl::Result<()> {
         kern.enq()?;
     }
 
+    result_buffer.read(&mut vec_result).enq()?;
+
+    print!("0x{:08x}, ", vec_result[0]);
+
+    let plane = Plane::from_data(
+        WIDTH as u32,
+        HEIGHT as u32,
+        vec_result
+            .iter()
+            .map(|pixel| {
+                let r = ((pixel >> (8 * 3)) & 0xFF) as u8;
+                let g = ((pixel >> (8 * 2)) & 0xFF) as u8;
+                let b = ((pixel >> (8 * 1)) & 0xFF) as u8;
+                let a = ((pixel >> (8 * 0)) & 0xFF) as u8;
+
+                [r, g, b, a]
+            })
+            .collect(),
+    )
+    .unwrap();
+
+    plane.save_as_png(format!("output.png")).unwrap();
+
+    /*
     // Read results from the device into result_buffer's local vector:
     result_buffer.read(&mut vec_result).enq()?;
     for idx in 0..(WIDTH * HEIGHT) {
@@ -178,6 +217,7 @@ fn basics() -> ocl::Result<()> {
         "index: 15, 0x{:08x}",
         vec_result[15]
     );
+     */
 
     Ok(())
 }
