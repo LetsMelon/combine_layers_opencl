@@ -41,12 +41,19 @@ uchar4 blend(uchar4 fg, uchar4 bg) {
 */
 
 uchar4 blend(uchar4 fg, uchar4 bg) {
-  uint alpha = fg[0] + 1;
-  uint inv_alpha = 256 - fg[0];
+  uint alpha = fg[COLOR_CHANEL_ALPHA] + 1;
+  uint inv_alpha = 256 - fg[COLOR_CHANEL_ALPHA];
 
-  return (uchar4)(0xff, (uchar)((alpha * fg[1] + inv_alpha * bg[1]) >> 8),
-                  (uchar)((alpha * fg[2] + inv_alpha * bg[2]) >> 8),
-                  (uchar)((alpha * fg[3] + inv_alpha * bg[3]) >> 8));
+  return (uchar4)(0xff,
+                  (uchar)((alpha * fg[COLOR_CHANEL_BLUE] +
+                           inv_alpha * bg[COLOR_CHANEL_BLUE]) >>
+                          8),
+                  (uchar)((alpha * fg[COLOR_CHANEL_GREEN] +
+                           inv_alpha * bg[COLOR_CHANEL_GREEN]) >>
+                          8),
+                  (uchar)((alpha * fg[COLOR_CHANEL_RED] +
+                           inv_alpha * bg[COLOR_CHANEL_RED]) >>
+                          8));
 }
 
 __kernel void combine_layers(__global unsigned int *input_buffer,
